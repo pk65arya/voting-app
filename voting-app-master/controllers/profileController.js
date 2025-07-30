@@ -1,5 +1,5 @@
 // controllers/profileController.js
-const Profile = require('../models/Profile');
+const Profile = require('../models/VoterProfile');
 const ErrorResponse = require('../utils/errorResponse');
 
 exports.getProfile = async (req, res, next) => {

@@ -1,12 +1,17 @@
-const User = require('../models/User');
-const VoterProfile = require('../models/VoterProfile');
-const ErrorResponse = require('../utils/errorResponse');
-const sendEmail = require('../services/emailService');
-const { generateToken, generateMfaSecret } = require('../utils/generateTokens');
-const { validationResult } = require('express-validator');
-const redis = require('../services/redisService');
-const AWS = require('aws-sdk');
-const crypto = require('crypto');
+const User = require("../models/User");
+const VoterProfile = require("../models/VoterProfile");
+const ErrorResponse = require("../utils/errorResponse");
+const sendEmail = require("../services/emailService");
+const {
+  generateToken,
+  generateMfaSecret,
+  verifyMfaCode,
+} = require("../utils/generateTokens");
+const { validationResult } = require("express-validator");
+const redis = require("../services/redisService");
+const AWS = require("aws-sdk");
+const crypto = require("crypto");
+const config = require("../config/config");
 // @desc    Register user
 // @route   POST /api/v1/auth/register
 // @access  Public
@@ -31,19 +36,21 @@ exports.register = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create verification URL
-    const verificationUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/verify/${verificationToken}`;
+    const verificationUrl = `${req.protocol}://${req.get(
+      "host"
+    )}/api/v1/auth/verify/${verificationToken}`;
 
     // Send email
     try {
       await sendEmail({
         email: user.email,
-        subject: 'Email Verification - Online Voting System',
+        subject: "Email Verification - Online Voting System",
         message: `Please verify your email by clicking on the following link: ${verificationUrl}`,
       });
 
       res.status(200).json({
         success: true,
-        data: 'Verification email sent',
+        data: "Verification email sent",
       });
     } catch (err) {
       console.error(err);
@@ -51,7 +58,7 @@ exports.register = async (req, res, next) => {
       user.verificationTokenExpire = undefined;
       await user.save({ validateBeforeSave: false });
 
-      return next(new ErrorResponse('Email could not be sent', 500));
+      return next(new ErrorResponse("Email could not be sent", 500));
     }
   } catch (err) {
     next(err);
@@ -63,19 +70,18 @@ exports.register = async (req, res, next) => {
 // @access  Public
 exports.verifyEmail = async (req, res, next) => {
   const verificationToken = crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(req.params.token)
-    .digest('hex');
+    .digest("hex");
 
   try {
-    
     const user = await User.findOne({
       verificationToken,
       verificationTokenExpire: { $gt: Date.now() },
     });
 
     if (!user) {
-      return next(new ErrorResponse('Invalid or expired token', 400));
+      return next(new ErrorResponse("Invalid or expired token", 400));
     }
 
     user.isVerified = true;
@@ -85,7 +91,7 @@ exports.verifyEmail = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: 'Email verified successfully',
+      data: "Email verified successfully",
     });
   } catch (err) {
     next(err);
@@ -105,27 +111,35 @@ exports.login = async (req, res, next) => {
 
   try {
     // Check if user exists
-    const user = await User.findOne({ email }).select('+password +mfaSecret');
+    const user = await User.findOne({ email }).select("+password +mfaSecret");
 
     if (!user) {
-      return next(new ErrorResponse('Invalid credentials', 401));
+      return next(new ErrorResponse("Invalid credentials", 401));
     }
 
     // Check if password matches
     const isMatch = await user.matchPassword(password);
 
     if (!isMatch) {
-      return next(new ErrorResponse('Invalid credentials', 401));
+      return next(new ErrorResponse("Invalid credentials", 401));
     }
 
     // Check if email is verified
     if (!user.isVerified) {
-      return next(new ErrorResponse('Please verify your email first', 401));
+      return next(new ErrorResponse("Please verify your email first", 401));
     }
 
     // Generate MFA token and store in Redis
-    const mfaToken = crypto.randomBytes(20).toString('hex');
-    await redis.set(`mfa:${mfaToken}`, user.id, 'EX', 300); // 5 minutes expiration
+    const mfaToken = crypto.randomBytes(20).toString("hex");
+    await redis.set(`mfa:${mfaToken}`, user.id, "EX", 300); // 5 minutes expiration
+
+    // Log the MFA code for development/testing
+    const generatedCode = crypto
+      .createHash("sha256")
+      .update(user.mfaSecret + Math.floor(Date.now() / 120000)) // 2-minute window
+      .digest("hex")
+      .substr(0, 6);
+    console.log(`MFA code for user ${user.email}:`, generatedCode);
 
     res.status(200).json({
       success: true,
@@ -147,21 +161,21 @@ exports.verifyMfa = async (req, res, next) => {
     const userId = await redis.get(`mfa:${mfaToken}`);
 
     if (!userId) {
-      return next(new ErrorResponse('Invalid or expired MFA token', 400));
+      return next(new ErrorResponse("Invalid or expired MFA token", 400));
     }
 
     // Get user
-    const user = await User.findById(userId).select('+mfaSecret');
+    const user = await User.findById(userId).select("+mfaSecret");
 
     if (!user) {
-      return next(new ErrorResponse('User not found', 404));
+      return next(new ErrorResponse("User not found", 404));
     }
 
     // Verify MFA code (implementation depends on your MFA method)
     const isVerified = verifyMfaCode(user.mfaSecret, mfaCode);
 
     if (!isVerified) {
-      return next(new ErrorResponse('Invalid MFA code', 401));
+      return next(new ErrorResponse("Invalid MFA code", 401));
     }
 
     // Generate JWT token
@@ -169,20 +183,18 @@ exports.verifyMfa = async (req, res, next) => {
 
     // Set cookie options
     const options = {
-      expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+      expires: new Date(Date.now() + config.COOKIE_EXPIRE),
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: process.env.NODE_ENV === "production",
     };
 
     // Delete MFA token from Redis
     await redis.del(`mfa:${mfaToken}`);
 
-    res.status(200)
-      .cookie('token', token, options)
-      .json({
-        success: true,
-        token,
-      });
+    res.status(200).cookie("token", token, options).json({
+      success: true,
+      token,
+    });
   } catch (err) {
     next(err);
   }
@@ -212,7 +224,7 @@ exports.getMe = async (req, res, next) => {
 // @route   GET /api/v1/auth/logout
 // @access  Private
 exports.logout = async (req, res, next) => {
-  res.cookie('token', 'none', {
+  res.cookie("token", "none", {
     expires: new Date(Date.now() + 10 * 1000),
     httpOnly: true,
   });
@@ -233,7 +245,7 @@ exports.forgotPassword = async (req, res, next) => {
     const user = await User.findOne({ email });
 
     if (!user) {
-      return next(new ErrorResponse('No user with that email', 404));
+      return next(new ErrorResponse("No user with that email", 404));
     }
 
     // Get reset token
@@ -241,18 +253,20 @@ exports.forgotPassword = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create reset URL
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/resetpassword/${resetToken}`;
+    const resetUrl = `${req.protocol}://${req.get(
+      "host"
+    )}/api/v1/auth/resetpassword/${resetToken}`;
 
     try {
       await sendEmail({
         email: user.email,
-        subject: 'Password Reset Request',
+        subject: "Password Reset Request",
         message: `You are receiving this email because you (or someone else) has requested a password reset. Please make a PUT request to: \n\n ${resetUrl}`,
       });
 
       res.status(200).json({
         success: true,
-        data: 'Email sent',
+        data: "Email sent",
       });
     } catch (err) {
       console.error(err);
@@ -260,7 +274,7 @@ exports.forgotPassword = async (req, res, next) => {
       user.resetPasswordExpire = undefined;
       await user.save({ validateBeforeSave: false });
 
-      return next(new ErrorResponse('Email could not be sent', 500));
+      return next(new ErrorResponse("Email could not be sent", 500));
     }
   } catch (err) {
     next(err);
@@ -272,9 +286,9 @@ exports.forgotPassword = async (req, res, next) => {
 // @access  Public
 exports.resetPassword = async (req, res, next) => {
   const resetPasswordToken = crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(req.params.resettoken)
-    .digest('hex');
+    .digest("hex");
 
   try {
     const user = await User.findOne({
@@ -283,7 +297,7 @@ exports.resetPassword = async (req, res, next) => {
     });
 
     if (!user) {
-      return next(new ErrorResponse('Invalid token', 400));
+      return next(new ErrorResponse("Invalid token", 400));
     }
 
     // Set new password
