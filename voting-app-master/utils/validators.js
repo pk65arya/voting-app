@@ -23,9 +23,9 @@ exports.forgotPasswordValidator = [
     .normalizeEmail(),
     
   // You can add additional security checks if needed
-  check('securityQuestion')
-    .if(check('email').exists())
-    .notEmpty().withMessage('Security question is required')
+  // check('securityQuestion')
+  //   .if(check('email').exists())
+  //   .notEmpty().withMessage('Security question is required')
 ];
 
 exports.resetPasswordValidator = [

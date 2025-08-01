@@ -47,14 +47,17 @@ UserSchema.pre('save', async function(next) {
 });
 
 // Generate email verification token
-UserSchema.methods.getVerificationToken = function() {
-  const verificationToken = crypto.randomBytes(20).toString('hex');
+UserSchema.methods.getVerificationToken = function () {
+  const rawToken = crypto.randomBytes(40).toString("hex");
+
   this.verificationToken = crypto
-    .createHash('sha256')
-    .update(verificationToken)
-    .digest('hex');
-  this.verificationTokenExpire = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-  return verificationToken;
+    .createHash("sha256")
+    .update(rawToken)
+    .digest("hex");
+
+  this.verificationTokenExpire = Date.now() + 60 * 60 * 1000; // 1 hour
+
+  return rawToken; // return the raw token
 };
 
 // Generate password reset token

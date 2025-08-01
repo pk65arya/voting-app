@@ -36,9 +36,7 @@ exports.register = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create verification URL
-    const verificationUrl = `${req.protocol}://${req.get(
-      "host"
-    )}/api/v1/auth/verify/${verificationToken}`;
+    const verificationUrl =  `http://localhost:5173/verify/${verificationToken}`;
 
     // Send email
     try {
@@ -81,6 +79,15 @@ exports.verifyEmail = async (req, res, next) => {
     });
 
     if (!user) {
+      // Check if the user is already verified by email
+      const alreadyVerified = await User.findOne({ isVerified: true });
+      if (alreadyVerified) {
+        return res.status(200).json({
+          success: true,
+          message: "Email already verified",
+        });
+      }
+
       return next(new ErrorResponse("Invalid or expired token", 400));
     }
 
@@ -91,12 +98,13 @@ exports.verifyEmail = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      data: "Email verified successfully",
+      message: "Email verified successfully",
     });
   } catch (err) {
     next(err);
   }
 };
+
 
 // @desc    Login user
 // @route   POST /api/v1/auth/login
@@ -139,7 +147,17 @@ exports.login = async (req, res, next) => {
       .update(user.mfaSecret + Math.floor(Date.now() / 120000)) // 2-minute window
       .digest("hex")
       .substr(0, 6);
-    console.log(`MFA code for user ${user.email}:`, generatedCode);
+    await redis.set(`code:${user.id}`, generatedCode, "EX", 300);
+    console.log(user.email)
+
+// Send MFA code via email
+await sendEmail({
+  email: user.email,
+  subject: "Your MFA Verification Code",
+  message: `Your MFA verification code is: ${generatedCode}`,
+});
+
+console.log(`MFA code for user ${user.email}: ${generatedCode}`); // For debugging
 
     res.status(200).json({
       success: true,
@@ -171,12 +189,22 @@ exports.verifyMfa = async (req, res, next) => {
       return next(new ErrorResponse("User not found", 404));
     }
 
-    // Verify MFA code (implementation depends on your MFA method)
-    const isVerified = verifyMfaCode(user.mfaSecret, mfaCode);
+    // Get expected code
+    const expectedCode = await redis.get(`code:${user.id}`);
 
+    if (!expectedCode || expectedCode !== mfaCode) {
+      return next(new ErrorResponse("Invalid MFA code", 401));
+    }
+
+    // Verify MFA code (TOTP for example)
+    const isVerified = verifyMfaCode(user.mfaSecret, mfaCode);
     if (!isVerified) {
       return next(new ErrorResponse("Invalid MFA code", 401));
     }
+
+    // Clean up Redis
+    await redis.del(`mfa:${mfaToken}`);
+    await redis.del(`code:${user.id}`);
 
     // Generate JWT token
     const token = generateToken(user.id);
@@ -188,9 +216,6 @@ exports.verifyMfa = async (req, res, next) => {
       secure: process.env.NODE_ENV === "production",
     };
 
-    // Delete MFA token from Redis
-    await redis.del(`mfa:${mfaToken}`);
-
     res.status(200).cookie("token", token, options).json({
       success: true,
       token,
@@ -199,6 +224,7 @@ exports.verifyMfa = async (req, res, next) => {
     next(err);
   }
 };
+
 
 // @desc    Get current logged in user
 // @route   GET /api/v1/auth/me
@@ -253,9 +279,7 @@ exports.forgotPassword = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create reset URL
-    const resetUrl = `${req.protocol}://${req.get(
-      "host"
-    )}/api/v1/auth/resetpassword/${resetToken}`;
+    const resetUrl = `http://localhost:5173/resetpassword/${resetToken}`;
 
     try {
       await sendEmail({
@@ -307,11 +331,11 @@ exports.resetPassword = async (req, res, next) => {
     await user.save();
 
     // Generate JWT token
-    const token = generateToken(user.id);
+    // const token = generateToken(user.id);
 
     res.status(200).json({
       success: true,
-      token,
+  
     });
   } catch (err) {
     next(err);
