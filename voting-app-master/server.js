@@ -88,9 +88,21 @@ app.use(hpp());
 
 // Enable CORS
 //app.use(cors());
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://votting-system.netlify.app'
+];
+
 app.use(cors({
-  origin: ["http://localhost:5173", "https://votting-system.netlify.app"], // frontend Vite port
-  credentials: true // if using cookies or auth headers
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
 }));
 // Mount routers
 app.use("/api/v1/auth", auth);
