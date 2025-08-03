@@ -36,7 +36,7 @@ exports.register = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create verification URL
-    const verificationUrl =  `http://localhost:5173/verify/${verificationToken}`;
+    const verificationUrl =  `https://votting-system.netlify.app/verify/${verificationToken}`;
 
     // Send email
     try {
