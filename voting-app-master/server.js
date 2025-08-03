@@ -89,7 +89,7 @@ app.use(hpp());
 // Enable CORS
 //app.use(cors());
 app.use(cors({
-  origin: "http://localhost:5173", // frontend Vite port
+  origin: ["http://localhost:5173", "https://votting-system.netlify.app"], // frontend Vite port
   credentials: true // if using cookies or auth headers
 }));
 // Mount routers
