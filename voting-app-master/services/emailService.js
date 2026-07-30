@@ -2,22 +2,13 @@ require('dotenv').config();
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  const port = parseInt(process.env.SMTP_PORT, 10) || 587;
-  console.log(port);
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: port,
-    secure: port === 465,
+    host: 'smtp.sendgrid.net',
+    port: 587,
     auth: {
-      user: process.env.SMTP_EMAIL,
-      pass: process.env.SMTP_PASSWORD,
+      user: 'apikey',
+      pass: process.env.SENDGRID_API_KEY,
     },
-    tls: {
-      rejectUnauthorized: false,
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000,
   });
 
   const mailOptions = {
