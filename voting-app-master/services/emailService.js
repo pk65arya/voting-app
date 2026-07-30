@@ -3,7 +3,7 @@ const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
   const port = parseInt(process.env.SMTP_PORT, 10) || 587;
-
+  console.log(port);
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: port,
