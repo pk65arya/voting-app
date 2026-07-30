@@ -36,7 +36,7 @@ exports.register = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create verification URL
-    const verificationUrl =  `https://votting-system.netlify.app/verify/${verificationToken}`;
+    const verificationUrl = `${process.env.CLIENT_URL}/verify/${verificationToken}`;
 
     // Send email
     try {
@@ -279,7 +279,7 @@ exports.forgotPassword = async (req, res, next) => {
     await user.save({ validateBeforeSave: false });
 
     // Create reset URL
-    const resetUrl = `http://localhost:5173/resetpassword/${resetToken}`;
+    const resetUrl = `${process.env.CLIENT_URL}/resetpassword/${resetToken}`;
 
     try {
       await sendEmail({

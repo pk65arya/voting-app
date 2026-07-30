@@ -88,11 +88,9 @@ app.use(limiter);
 app.use(hpp());
 
 // Enable CORS
-//app.use(cors());
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://votting-system.netlify.app'
-];
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+  : ['http://localhost:5173'];
 
 app.use(cors({
   origin: function (origin, callback) {
