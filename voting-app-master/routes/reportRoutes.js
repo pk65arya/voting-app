@@ -1,9 +1,9 @@
-// routes/reportRoutes.js
 const express = require("express");
 const router = express.Router();
-const reportController = require("../controllers/reportController");
+const { getVotingReport, getAuditTrail } = require("../controllers/reportController");
+const { protect, authorize } = require("../middleware/auth");
 
-router.get("/voting", reportController.getVotingReport); // Admin only
-router.get("/audit", reportController.getAuditTrail); // Admin only
+router.get("/voting", protect, authorize("admin"), getVotingReport);
+router.get("/audit", protect, authorize("admin"), getAuditTrail);
 
 module.exports = router;

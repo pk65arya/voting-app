@@ -18,6 +18,11 @@ const UserSchema = new mongoose.Schema({
     minlength: 6,
     select: false
   },
+  role: {
+    type: String,
+    enum: ['voter', 'admin'],
+    default: 'voter'
+  },
   mfaSecret: {
     type: String,
     select: false

@@ -25,8 +25,9 @@ const auth = require("./routes/authRoutes");
 const votes = require("./routes/voteRoutes");
 const profileRoutes = require("./routes/ProfileRoutes");
 const electionRoutes = require("./routes/electionRoutes");
-
-// Add other routes as needed
+const feedbackRoutes = require("./routes/feedbackRoutes");
+const reportRoutes = require("./routes/reportRoutes");
+const supportRoutes = require("./routes/supportRoutes");
 
 const app = express();
 
@@ -109,7 +110,9 @@ app.use("/api/v1/auth", auth);
 app.use("/api/v1/votes", votes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/elections", electionRoutes);
-// Mount other routers as needed
+app.use("/api/v1/feedback", feedbackRoutes);
+app.use("/api/v1/reports", reportRoutes);
+app.use("/api/v1/support", supportRoutes);
 
 // Error handler middleware
 app.use(errorHandler);

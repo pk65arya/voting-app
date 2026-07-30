@@ -20,16 +20,7 @@ const {
 } = require('../utils/validators');
 
 const router = express.Router();
-console.log('Controller imports:', {
-  register: typeof register,
-  verifyEmail: typeof verifyEmail, 
-  login: typeof login,
-  verifyMfa: typeof verifyMfa,
-  getMe: typeof getMe,
-  logout: typeof logout,
-  forgotPassword: typeof forgotPassword,
-  resetPassword: typeof resetPassword
-});
+
 router.post('/register', registerValidator, validate, register);
 router.get('/verify/:token', verifyEmail);
 router.post('/login', loginValidator, validate, login);

@@ -1,9 +1,12 @@
-// routes/feedbackRoutes.js
 const express = require("express");
 const router = express.Router();
-const feedbackController = require("../controllers/feedbackController");
+const { submitFeedback, getAllFeedback } = require("../controllers/feedbackController");
+const { protect, authorize } = require("../middleware/auth");
 
-router.post("/", feedbackController.submitFeedback);
-router.get("/", feedbackController.getAllFeedback); // Admin only
+// Public/authenticated - submit feedback
+router.post("/", submitFeedback);
+
+// Admin only - get all feedback
+router.get("/", protect, authorize("admin"), getAllFeedback);
 
 module.exports = router;
