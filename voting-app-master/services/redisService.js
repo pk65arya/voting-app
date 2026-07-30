@@ -4,6 +4,13 @@ const config = require('../config/config');
 const redisUrl = config.REDIS_URL || 'redis://localhost:6379';
 const client = createClient({
   url: redisUrl,
+  socket: {
+    tls: redisUrl.startsWith('rediss://'),
+    reconnectStrategy: (retries) => {
+      if (retries > 5) return false; // Stop after 5 retries
+      return Math.min(retries * 200, 3000);
+    },
+  },
 });
 
 let connected = false;

@@ -1,16 +1,23 @@
-require('dotenv').config(); // Make sure this is at the top
+require('dotenv').config();
 const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-  console.log("Loaded SMTP:", process.env.SMTP_HOST, process.env.SMTP_EMAIL); // For debugging
+  const port = parseInt(process.env.SMTP_PORT, 10) || 587;
 
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
+    port: port,
+    secure: port === 465,
     auth: {
       user: process.env.SMTP_EMAIL,
       pass: process.env.SMTP_PASSWORD,
     },
+    tls: {
+      rejectUnauthorized: false,
+    },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
   });
 
   const mailOptions = {
