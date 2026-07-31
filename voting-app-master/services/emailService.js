@@ -1,18 +1,5 @@
 const nodemailer = require('nodemailer');
 
-console.log({
-    host: process.env.SMTP_HOST,
-    port: process.env.SMTP_PORT,
-    user: process.env.SMTP_EMAIL,
-    secure: port === 465,
-});
-try {
-    await transporter.verify();
-    console.log("SMTP connected successfully");
-} catch (err) {
-    console.error("SMTP Verify Error:", err);
-}
-
 const sendEmail = async (options) => {
   try {
     const transporter = nodemailer.createTransport({
